@@ -94,24 +94,23 @@ def run_fix(name: str) -> None:
     """
     Runs a fix as committed at current remote state of master
     """
-    pwd = Path(__file__).parent
-    fix_path = (pwd / "fixes" / name).relative_to(pwd.parent)
-
-    subprocess.run(
-        ["git", "fetch", "origin", "master"],
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
-    )
+    # TODO: This should all be driven by a committed dotfile at the root of the
+    # repo
+    prog_root = Path(__file__).parent
+    repo_root = prog_root.parent
+    fix_path = (prog_root / "fixes" / name).relative_to(repo_root)
 
     tempfile = NamedTemporaryFile(delete=False)
 
     try:
         result = subprocess.run(
-            ["git", "show", f"origin/master:{fix_path}"], stdout=tempfile
+            ["git", "show", f"origin/master:{fix_path}"],
+            stdout=tempfile,
+            cwd=repo_root,
         )
         tempfile.close()
         os.chmod(tempfile.name, 0o700)
-        subprocess.run([tempfile.name])
+        subprocess.run([tempfile.name], cwd=repo_root)
 
     finally:
         os.remove(tempfile.name)
@@ -125,7 +124,7 @@ def run_fixes(run_all: bool = False) -> None:
         fixes = _list_fixes(_last_fixed())
 
     if not fixes:
-        print('No fixes to run!')
+        print("No fixes to run!")
         return
 
     for fix in fixes:
@@ -135,6 +134,12 @@ def run_fixes(run_all: bool = False) -> None:
 
 def main(argv: Sequence[str]) -> None:
     argc = len(argv)
+
+    subprocess.run(
+        ["git", "fetch", "origin", "master"],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
 
     if argc == 0:
         run_fixes()
